@@ -1,0 +1,24 @@
+import matplotlib.pyplot as plt
+
+# 假设这是 dda.py 文件中的其他代码
+def draw_line(x1, y1, x2, y2):
+    dx = x2 - x1
+    dy = y2 - y1
+    steps = abs(dx) if abs(dx) > abs(dy) else abs(dy)
+    x_increment = dx / steps
+    y_increment = dy / steps
+    x = x1
+    y = y1
+    points = []
+    for _ in range(int(steps) + 1):
+        points.append((round(x), round(y)))
+        x += x_increment
+        y += y_increment
+    return points
+
+# 示例调用
+points = draw_line(0, 0, 10, 10)
+x_coords, y_coords = zip(*points)
+plt.plot(x_coords, y_coords, marker='o')
+plt.grid(True)
+plt.show()
