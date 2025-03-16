@@ -1,0 +1,181 @@
+在计算机图形学中，扫描线填色算法和种子填色算法是两种常用的多边形填充方法。下面分别介绍这两种算法中的关键概念：**活性边表（Active Edge Table, AET）** 和 **种子填色（Seed Fill）**。
+
+### 活性边表（Active Edge Table, AET）
+
+**活性边表** 是扫描线填色算法中的一个重要数据结构，主要用于存储当前扫描线与多边形相交的边的信息。以下是活性边表的主要内容和工作流程：
+
+#### 主要内容
+- **x**：当前扫描线与边的交点的 x 坐标。
+- **dx**：边的 x 坐标的增量（即边的斜率的倒数）。
+- **ymax**：边的最高 y 坐标。
+- **next**：指向表中的下一个边。
+
+#### 工作流程
+1. **初始化**：
+   - 创建一个全局边表（Global Edge Table, GET），存储多边形每条边的信息。
+   - 初始化活性边表（AET）为空。
+
+2. **扫描线处理**：
+   - 从最低的 y 坐标开始，逐行扫描到最高的 y 坐标。
+   - 对于每一行，将 GET 中所有 `ymin` 等于当前扫描线 y 坐标的边加入 AET。
+   - 删除 AET 中 `ymax` 小于当前扫描线 y 坐标的边。
+   - 对 AET 中的边按 x 坐标排序。
+   - 填充 AET 中相邻边之间的区域。
+   - 更新 AET 中每条边的 x 坐标：`x = x + dx`。
+
+3. **填充**：
+   - 对于每一对相邻的边，填充它们之间的区域。
+
+#### 示例代码
+
+以下是一个简单的 Python 示例，展示了如何使用活性边表进行扫描线填色：
+
+```python
+import matplotlib.pyplot as plt
+
+def scanline_fill(polygon):
+    # Step 1: Create Global Edge Table (GET)
+    get = []
+    n = len(polygon)
+    for i in range(n):
+        x1, y1 = polygon[i]
+        x2, y2 = polygon[(i + 1) % n]
+        if y1 > y2:
+            x1, x2 = x2, x1
+            y1, y2 = y2, y1
+        if y1 != y2:
+            dx = (x2 - x1) / (y2 - y1)
+            get.append((y1, x1, dx, y2))
+
+    # Sort GET by ymin
+    get.sort()
+
+    # Step 2: Initialize Active Edge Table (AET)
+    aet = []
+    y = get[0][0]
+    filled_points = []
+
+    while get or aet:
+        # Add edges from GET to AET
+        while get and get[0][0] == y:
+            _, x, dx, ymax = get.pop(0)
+            aet.append((x, dx, ymax))
+
+        # Remove edges from AET if ymax < y
+        aet = [edge for edge in aet if edge[2] > y]
+
+        # Sort AET by x
+        aet.sort()
+
+        # Fill between pairs of edges
+        for i in range(0, len(aet), 2):
+            x1, _, _ = aet[i]
+            x2, _, _ = aet[i + 1]
+            for x in range(int(x1), int(x2) + 1):
+                filled_points.append((x, y))
+
+        # Update x for edges in AET
+        aet = [(x + dx, dx, ymax) for x, dx, ymax in aet]
+
+        # Move to the next scan line
+        if get:
+            y = get[0][0]
+        else:
+            y += 1
+
+    return filled_points
+
+# 定义多边形
+polygon = [(10, 10), (20, 30), (40, 20), (30, 10)]
+
+# 扫描线填充
+filled_points = scanline_fill(polygon)
+
+# 绘制多边形和填充结果
+x_coords, y_coords = zip(*polygon)
+plt.plot(x_coords + (x_coords[0],), y_coords + (y_coords[0],), 'b-')  # 多边形边界
+x_fill, y_fill = zip(*filled_points)
+plt.plot(x_fill, y_fill, 'ro')  # 填充点
+plt.title('Scanline Fill with Active Edge Table')
+plt.xlabel('X')
+plt.ylabel('Y')
+plt.grid(True)
+plt.axis('equal')
+plt.show()
+```
+
+
+### 种子填色（Seed Fill）
+
+**种子填色** 是一种基于递归或迭代的方法，通过从一个种子点开始，逐步填充与种子点颜色不同的相邻像素，直到整个区域被填充。以下是种子填色的主要内容和工作流程：
+
+#### 主要内容
+- **种子点**：填充的起始点。
+- **边界颜色**：多边形的边界颜色。
+- **填充颜色**：用于填充多边形内部的颜色。
+
+#### 工作流程
+1. **初始化**：
+   - 选择一个种子点，该点位于多边形内部。
+   - 确定边界颜色和填充颜色。
+
+2. **填充**：
+   - 如果种子点的颜色不是边界颜色且不是填充颜色，则将其填充为填充颜色。
+   - 递归或迭代地对种子点的四个相邻像素（上、下、左、右）进行相同的填充操作。
+
+3. **终止条件**：
+   - 当所有相邻像素都被填充或遇到边界颜色时，停止填充。
+
+#### 示例代码
+
+以下是一个简单的 Python 示例，展示了如何使用种子填色进行多边形填充：
+
+```python
+import matplotlib.pyplot as plt
+import numpy as np
+
+def seed_fill(image, x, y, old_color, new_color):
+    if image[x, y] != old_color:
+        return
+    image[x, y] = new_color
+    seed_fill(image, x + 1, y, old_color, new_color)
+    seed_fill(image, x - 1, y, old_color, new_color)
+    seed_fill(image, x, y + 1, old_color, new_color)
+    seed_fill(image, x, y - 1, old_color, new_color)
+
+# 创建一个空白图像
+width, height = 100, 100
+image = np.zeros((width, height), dtype=int)
+
+# 定义多边形
+polygon = [(10, 10), (20, 30), (40, 20), (30, 10)]
+
+# 绘制多边形边界
+for i in range(len(polygon)):
+    x1, y1 = polygon[i]
+    x2, y2 = polygon[(i + 1) % len(polygon)]
+    for x in range(min(x1, x2), max(x1, x2) + 1):
+        for y in range(min(y1, y2), max(y1, y2) + 1):
+            if (x - x1) * (y2 - y1) == (y - y1) * (x2 - x1):
+                image[x, y] = 1
+
+# 种子填色
+seed_x, seed_y = 20, 20
+seed_fill(image, seed_x, seed_y, 0, 2)
+
+# 绘制结果
+plt.imshow(image, cmap='gray')
+plt.title('Seed Fill')
+plt.xlabel('X')
+plt.ylabel('Y')
+plt.grid(False)
+plt.show()
+```
+
+
+### 总结
+
+- **活性边表（AET）** 主要用于扫描线填色算法，通过维护当前扫描线与多边形相交的边的信息来实现高效的多边形填充。
+- **种子填色** 通过从一个种子点开始，递归或迭代地填充与种子点颜色不同的相邻像素，适用于简单的多边形填充。
+
+这两种方法各有优缺点，选择哪种方法取决于具体的应用场景和需求。
